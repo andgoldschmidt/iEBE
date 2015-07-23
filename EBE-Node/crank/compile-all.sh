@@ -5,6 +5,9 @@ for ii in superMC VISHNew iSS iS osc2u urqmd
     (cd $ii; make; make clean)
 done
 
+# trento is different
+(cd trento/build; make;)
+
 echo "Compiling finished."
 echo "Next generate jobs using generate-jobs-XXX.sh."
 )

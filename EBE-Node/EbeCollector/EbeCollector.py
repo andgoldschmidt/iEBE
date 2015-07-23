@@ -278,7 +278,8 @@ class EbeCollector(object):
         # for lifetime
         maxLifetime = np.max(np.loadtxt(path.join(folder, "surface.dat"))[:,1])
         db.insertIntoTable("scalars", (event_id, maxLifetime))
-        # for others (future)
+
+
 
 
     def collectFLowsAndMultiplicities_urqmdBinUtilityFormat(self, folder, event_id, db, multiplicityFactor=1.0):

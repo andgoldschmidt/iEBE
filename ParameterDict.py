@@ -1,12 +1,14 @@
 controlParameterList = {
-    'simulation_type'       :   'hybrid',  # 'hybrid' or 'hydro'
-    'niceness'              :   0,       # range from 0 to 19 for process priority, 0 for the highest priority
+    'simulation_type'       :   'hydro',  # 'hybrid' or 'hydro'
+    'initialCondition'      :   'trento', # 'trento' or 'superMC'
+    'niceness'              :   10,       # range from 0 to 19 for process priority, 0 for the highest priority
 }
 
 centralityParameters = {
     'centrality': '20-30%',  # centrality bin
-    'cut_type': 'total_entropy',
+    'cut_type': '',
     # centrality cut variable: total_entropy or Npart
+    # if string is empty, ignore
 }
 
 superMCParameters = {
@@ -18,6 +20,21 @@ superMCParameters = {
     'finalFactor'                   :   56.763,
     'alpha'                         :   0.118,
     'lambda'                        :   0.218,
+    'bmin'                          :   0, # ignore if cut_type chosen
+    'bmax'                          :   20,
+}
+
+trentoParameters = {
+    'reduced-thickness'             :   0,
+    'projectile1'                   :   'Pb',
+    'projectile2'                   :   'Pb',
+    'fluctuation'                   :   1e12, # inf -> off
+    'nucleon-width'                 :   0.5,
+    'deposition-width'              :   0.5,
+    'cross-section'                 :   6.4,
+    'normalization'                 :   56,
+    'b-min'                         :   0,
+    'b-max'                         :   20,
 }
 
 hydroParameters = {

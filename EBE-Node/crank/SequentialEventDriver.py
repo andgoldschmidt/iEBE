@@ -23,6 +23,8 @@ allParameterLists = [
     'centralityParameters',
     'superMCControl',
     'superMCParameters',
+    'trentoControl',
+    'trentoParameters',
     'hydroControl',
     'hydroParameters',
     'iSSControl',
@@ -39,6 +41,7 @@ allParameterLists = [
 
 controlParameterList = {
     'simulation_type'       :   'hybrid', # 'hybrid' or 'hydro'
+    'initialCondition'      :   'superMC', # 'superMC' or 'trento'
     'niceness'              :   10,       # range from 0 to 19 for process priority, 0 for the highest priority
     'numberOfEvents'        :   10, # how many sequential calculations
     'rootDir'               :   path.abspath('../'),
@@ -52,9 +55,10 @@ controlParameterList = {
 
 centralityParameters = {
     'centrality': '0-5%',  # centrality bin
-    'cut_type': 'total_entropy',
+    'cut_type': '',
     # centrality cut variable: total_entropy or Npart
 }
+
 superMCControl = {
     'mainDir'                       :   'superMC',
     'dataDir'                       :   'data', # where initial conditions are stored, relative
@@ -69,7 +73,7 @@ superMCParameters = {
     'Npmax'                         :   1000,
     'bmin'                          :   0,
     'bmax'                          :   20,
-    'cutdSdy'                       :   1,
+    'cutdSdy'                       :   0,
     'cutdSdy_lowerBound'            :   551.864,
     'cutdSdy_upperBound'            :   1000000.0,
     'Aproj'                         :   208,
@@ -81,6 +85,27 @@ superMCParameters = {
     'lambda'                        :   0.288,
     'operation'                     :   1,
     'cc_fluctuation_model'          :   6,
+}
+
+trentoControl = {
+    'mainDir'                       :   'trento',
+    'dataDir'                       :   'events',
+    'dataFiles'                     :   'event-*.dat',
+    'numberOfEventsParameterName'   :   'number-events',
+    'executable'                    :   'trento_shell.sh',
+}
+trentoParameters = {
+    'reduced-thickness'             :   0,
+    'projectile1'                   :   'Au',
+    'projectile2'                   :   'Au',
+    'fluctuation'                   :   1e12, # inf -> off
+    'nucleon-width'                 :   0.5,
+    'deposition-width'              :   0.5,
+    'cross-section'                 :   6.4,
+    'normalization'                 :   1,
+    'b-min'                         :   0,
+    'b-max'                         :   20,
+    'random-seed'                   :   -1,
 }
 
 hydroControl = {
@@ -183,7 +208,7 @@ def translate_centrality_cut():
     """
     cut_type = centralityParameters['cut_type']
     if cut_type not in ['total_entropy', 'Npart']:
-        print "invalid centrality cut type: ", cut_type
+        print("invalid centrality cut type: ", cut_type)
         exit(1)
 
     centrality_string = centralityParameters['centrality']
@@ -231,8 +256,8 @@ def translate_centrality_cut():
             path.join(path.abspath('../centrality_cut_tables'),
                       centrality_cut_file_name))
     except IOError:
-        print "Can not find the centrality cut table for the collision system"
-        print centrality_cut_file_name
+        print("Can not find the centrality cut table for the collision system")
+        print(centrality_cut_file_name)
         exit(1)
 
     lower_idx = (
@@ -273,22 +298,22 @@ def translate_centrality_cut():
     superMCParameters['bmax'] = b_max
     superMCParameters['bmin'] = b_min
 
-    #print out information
-    print '-'*80
+    #print(out information
+    print('-'*80)
     print('%s collisions at sqrt{s} = %s A GeV with %s initial conditions'
           % (nucleus_name , collision_energy, model_name))
     print("Centrality : %g - %g"
-          % (centrality_lower_bound, centrality_upper_bound) + r"%")
-    print 'centrality cut on ', cut_type
+          % (centrality_lower_bound, centrality_upper_bound + r"%"))
+    print('centrality cut on ', cut_type)
     if cut_type == 'total_entropy':
-        print 'dS/dy :', cut_value_low, '-', cut_value_upper
-    print "Npart: ", npart_min, '-', npart_max
-    print "b: ", b_min, '-', b_max, ' fm'
-    print '-'*80
+        print('dS/dy :', cut_value_low, '-', cut_value_upper)
+    print("Npart: ", npart_min, '-', npart_max)
+    print("b: ", b_min, '-', b_max, ' fm')
+    print('-'*80)
     return
 
 
-def generateSuperMCInitialConditions(numberOfEvents):
+def generateSupermcInitialConditions(numberOfEvents):
     """
         Generate initial conditions using superMC. It then yield the absolute
         path for all the initial conditions.
@@ -307,7 +332,7 @@ def generateSuperMCInitialConditions(numberOfEvents):
 
     # set "nev=#" in superMCParameters
     superMCParameters[superMCControl['numberOfEventsParameterName']] = numberOfEvents
-    # form assignment string
+    # form assignment string (edit to match trento rules)
     assignments = formAssignmentStringFromDict(superMCParameters)
     # form executable string
     executableString = "nice -n %d ./" % (ProcessNiceness) + superMCExecutable + assignments
@@ -318,6 +343,39 @@ def generateSuperMCInitialConditions(numberOfEvents):
     for aFile in glob(path.join(superMCDataDirectory, superMCControl['dataFiles'])):
         # then yield it
         yield path.join(superMCDataDirectory, aFile)
+
+
+def generateTrentoInitialConditions(numberOfEvents):
+    """
+        Generate initial conditions using TRENTO and yield the absolute
+        path for all the initial conditions.
+    """
+    ProcessNiceness = controlParameterList['niceness']
+    # set directory strings
+    trentoDirectory = path.join(controlParameterList['rootDir'], trentoControl['mainDir'])
+    trentoDataDirectory = path.join(trentoDirectory, trentoControl['dataDir'])
+    trentoExecutable = trentoControl['executable']
+
+    # clean up the data subfolder for output
+    cleanUpFolder(trentoDataDirectory)
+
+    # check executable
+    checkExistenceOfExecutable(path.join(trentoDirectory, trentoExecutable))
+
+    # append "nev=#" in trentoParameters
+    trentoParameters[trentoControl['numberOfEventsParameterName']] = numberOfEvents
+    # form assignment string
+    assignments = formAssignmentStringFromDict(trentoParameters).replace(' ', ' --').replace('=', ' ')
+    assignments = assignments.replace('projectile1', 'projectile').replace('projectile2', 'projectile')
+    # form executable string
+    executableString = "nice -n %d ./" % (ProcessNiceness) + trentoExecutable + assignments
+    # execute!
+    run(executableString, cwd=trentoDirectory)
+
+    # yield initial conditions
+    for aFile in glob(path.join(trentoDataDirectory, trentoControl['dataFiles'])):
+        # then yield it
+        yield path.join(trentoDataDirectory, aFile)
 
 
 def hydroWithInitialCondition(aFile):
@@ -628,7 +686,8 @@ def sequentialEventDriverShell():
     try:
         # read parameters
         readInParameters()
-        translate_centrality_cut()
+        if centralityParameters['cut_type']:
+            translate_centrality_cut()
 
         # create result folder
         resultDir = controlParameterList['resultDir']
@@ -638,13 +697,15 @@ def sequentialEventDriverShell():
 
         # get simulation type
         simulationType = controlParameterList['simulation_type']
+        # name initial condition function
+        icString = "generate" + controlParameterList['initialCondition'].capitalize() + "InitialConditions"
 
         # generate initial conditions then loop over initial conditions
         event_id = 0
-        # print current progress to terminal
+        # print(current progress to terminal
         stdout.write("PROGRESS: %d events out of %d finished.\n" % (event_id, controlParameterList['numberOfEvents']))
         stdout.flush()
-        for aInitialConditionFile in generateSuperMCInitialConditions(controlParameterList['numberOfEvents']):
+        for aInitialConditionFile in globals()[icString](controlParameterList['numberOfEvents']):
             # get the result folder name for storing results, then create it if necessary
             event_id += 1
             eventResultDir = path.join(resultDir, controlParameterList['eventResultDirPattern'] % event_id)
@@ -653,7 +714,7 @@ def sequentialEventDriverShell():
                 rmtree(eventResultDir)
             makedirs(eventResultDir)
 
-            # print current progress to terminal
+            # print(current progress to terminal
             print("Starting event %d..." % event_id)
 
             # perform hydro calculations and get a list of all the result filenames
@@ -684,7 +745,7 @@ def sequentialEventDriverShell():
                 # perform iS calculation and resonance decays
                 iSWithResonancesWithHydroResultFiles(hydroResultFiles)
 
-            # print current progress to terminal
+            # print(current progress to terminal
             stdout.write("PROGRESS: %d events out of %d finished.\n" % (event_id, controlParameterList['numberOfEvents']))
             stdout.flush()
 
