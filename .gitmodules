@@ -1,3 +1,6 @@
-[submodule "EBE-Node/trento"]
-	path = EBE-Node/trento
+[submodule "EBE-Node/trento/src"]
+	path = EBE-Node/trento/src
 	url = https://github.com/Duke-QCD/trento.git
+[submodule "EBE-Node/superMC"]
+	path = EBE-Node/superMC
+	url = https://github.com/chunshen1987/superMC.git

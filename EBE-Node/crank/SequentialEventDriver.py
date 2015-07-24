@@ -62,7 +62,9 @@ centralityParameters = {
 superMCControl = {
     'mainDir'                       :   'superMC',
     'dataDir'                       :   'data', # where initial conditions are stored, relative
-    'dataFiles'                     :   '*event*.dat', # data filenames
+    'saveICFile'                    :   True, # whether to save initial condition file
+    'dataFiles'                     :   '*event_%d_*.dat', # data filenames
+    'initialFiles'                  :   '*event*_block*.dat',  #initial density profile filenames
     'numberOfEventsParameterName'   :   'nev',
     'executable'                    :   'superMC.e',
 }
@@ -74,23 +76,28 @@ superMCParameters = {
     'bmin'                          :   0,
     'bmax'                          :   20,
     'cutdSdy'                       :   0,
-    'cutdSdy_lowerBound'            :   551.864,
+    'cutdSdy_lowerBound'            :   0,
     'cutdSdy_upperBound'            :   1000000.0,
-    'Aproj'                         :   208,
-    'Atarg'                         :   208,
     'ecm'                           :   2760,
     'finalFactor'                   :   56.763,
     'use_ed'                        :   0,
     'alpha'                         :   0.118,
     'lambda'                        :   0.288,
     'operation'                     :   1,
+    'include_NN_correlation'        :   1,
     'cc_fluctuation_model'          :   6,
+    'cc_fluctuation_Gamma_theta'    :   0.75,
+    'maxx'                          :   13.0,       # grid size in x (fm)
+    'maxy'                          :   13.0,       # grid size in y (fm)
+    'dx'                            :   0.1,        # grid spacing in x (fm)
+    'dy'                            :   0.1,        # grid spacing in y (fm)
 }
-
 trentoControl = {
     'mainDir'                       :   'trento',
     'dataDir'                       :   'events',
-    'dataFiles'                     :   'event-*.dat',
+    'saveICFile'                    :   True, # whether to save initial condition file
+    'dataFiles'                     :   '*event_%d_*.dat', # data filenames
+    'initialFiles'                  :   '*event*_block*.dat',  #initial density profile filenames
     'numberOfEventsParameterName'   :   'number-events',
     'executable'                    :   'trento_shell.sh',
 }
@@ -216,16 +223,21 @@ def translate_centrality_cut():
     centrality_upper_bound = float(
         centrality_string.split('-')[1].split('%')[0])
 
-    if superMCParameters['which_mc_model'] == 5:
+    if superMCParameters['which_mc_model'] == 5 and superMCParameters['sub_model'] == 1:
         model_name = 'MCGlb'
-    elif superMCParameters['which_mc_model'] == 1:
+    elif superMCParameters['which_mc_model'] == 1 and superMCParameters['sub_model'] == 7:
         model_name = 'MCKLN'
 
     if superMCParameters['cc_fluctuation_model'] != 0:
         multiplicity_fluctuation = 'withMultFluct'
     else:
         multiplicity_fluctuation = 'noMultFluct'
-
+    
+    if superMCParameters['include_NN_correlation'] != 0:
+        NNcorrelation = 'withNNcorrelation'
+    else:
+        NNcorrelation = 'd0.9'
+    
     collision_energy = str(superMCParameters['ecm'])
 
     Aproj = superMCParameters['Aproj']
@@ -235,6 +247,7 @@ def translate_centrality_cut():
         197: 'Au',
         238: 'U',
         63: 'Cu',
+        27: 'Al',
         1: 'p',
         2: 'd',
         3: 'He',
@@ -246,9 +259,9 @@ def translate_centrality_cut():
                         + nucleus_name_dict[max(Aproj, Atrag)])
 
     centrality_cut_file_name = (
-        'iebe_centralityCut_%s_%s_sigmaNN_gauss_d0.9_%s.dat'
+        'iebe_centralityCut_%s_%s_sigmaNN_gauss_%s_%s.dat'
         % (cut_type, model_name + nucleus_name + collision_energy,
-           multiplicity_fluctuation)
+           NNcorrelation, multiplicity_fluctuation)
     )
 
     try:
@@ -291,8 +304,10 @@ def translate_centrality_cut():
         superMCParameters['cutdSdy_upperBound'] = cut_value_upper
     elif cut_type == 'Npart':
         superMCParameters['cutdSdy'] = 0
-        b_min = min(centrality_cut_file[lower_idx-1:upper_idx+1, 4])
-        b_max = max(centrality_cut_file[lower_idx-1:upper_idx+1, 5])
+        b_min = min(centrality_cut_file[lower_idx-1:upper_idx+1, 2])
+        b_max = max(centrality_cut_file[lower_idx-1:upper_idx+1, 3])
+        npart_min = cut_value_low
+        npart_max = cut_value_upper
     superMCParameters['Npmax'] = npart_max
     superMCParameters['Npmin'] = npart_min
     superMCParameters['bmax'] = b_max
@@ -303,7 +318,7 @@ def translate_centrality_cut():
     print('%s collisions at sqrt{s} = %s A GeV with %s initial conditions'
           % (nucleus_name , collision_energy, model_name))
     print("Centrality : %g - %g"
-          % (centrality_lower_bound, centrality_upper_bound + r"%"))
+          % (centrality_lower_bound, centrality_upper_bound) + r"%")
     print('centrality cut on ', cut_type)
     if cut_type == 'total_entropy':
         print('dS/dy :', cut_value_low, '-', cut_value_upper)
@@ -313,7 +328,7 @@ def translate_centrality_cut():
     return
 
 
-def generateSupermcInitialConditions(numberOfEvents):
+def generateSuperMCInitialConditions(numberOfEvents):
     """
         Generate initial conditions using superMC. It then yield the absolute
         path for all the initial conditions.
@@ -332,7 +347,7 @@ def generateSupermcInitialConditions(numberOfEvents):
 
     # set "nev=#" in superMCParameters
     superMCParameters[superMCControl['numberOfEventsParameterName']] = numberOfEvents
-    # form assignment string (edit to match trento rules)
+    # form assignment string
     assignments = formAssignmentStringFromDict(superMCParameters)
     # form executable string
     executableString = "nice -n %d ./" % (ProcessNiceness) + superMCExecutable + assignments
@@ -340,7 +355,39 @@ def generateSupermcInitialConditions(numberOfEvents):
     run(executableString, cwd=superMCDirectory)
 
     # yield initial conditions
-    for aFile in glob(path.join(superMCDataDirectory, superMCControl['dataFiles'])):
+    for aFile in glob(path.join(superMCDataDirectory, superMCControl['initialFiles'])):
+        # then yield it
+        yield path.join(superMCDataDirectory, aFile)
+
+
+def generateSuperMCInitialConditions(numberOfEvents):
+    """
+        Generate initial conditions using superMC. It then yield the absolute
+        path for all the initial conditions.
+    """
+    ProcessNiceness = controlParameterList['niceness']
+    # set directory strings
+    superMCDirectory = path.join(controlParameterList['rootDir'], superMCControl['mainDir'])
+    superMCDataDirectory = path.join(superMCDirectory, superMCControl['dataDir'])
+    superMCExecutable = superMCControl['executable']
+
+    # clean up the data subfolder for output
+    cleanUpFolder(superMCDataDirectory)
+
+    # check executable
+    checkExistenceOfExecutable(path.join(superMCDirectory, superMCExecutable))
+
+    # set "nev=#" in superMCParameters
+    superMCParameters[superMCControl['numberOfEventsParameterName']] = numberOfEvents
+    # form assignment string
+    assignments = formAssignmentStringFromDict(superMCParameters)
+    # form executable string
+    executableString = "nice -n %d ./" % (ProcessNiceness) + superMCExecutable + assignments
+    # execute!
+    run(executableString, cwd=superMCDirectory)
+
+    # yield initial conditions
+    for aFile in glob(path.join(superMCDataDirectory, superMCControl['initialFiles'])):
         # then yield it
         yield path.join(superMCDataDirectory, aFile)
 
@@ -364,7 +411,7 @@ def generateTrentoInitialConditions(numberOfEvents):
 
     # append "nev=#" in trentoParameters
     trentoParameters[trentoControl['numberOfEventsParameterName']] = numberOfEvents
-    # form assignment string
+    # form assignment string (note some modifications required)
     assignments = formAssignmentStringFromDict(trentoParameters).replace(' ', ' --').replace('=', ' ')
     assignments = assignments.replace('projectile1', 'projectile').replace('projectile2', 'projectile')
     # form executable string
@@ -373,9 +420,10 @@ def generateTrentoInitialConditions(numberOfEvents):
     run(executableString, cwd=trentoDirectory)
 
     # yield initial conditions
-    for aFile in glob(path.join(trentoDataDirectory, trentoControl['dataFiles'])):
+    for aFile in glob(path.join(trentoDataDirectory, trentoControl['initialFiles'])):
         # then yield it
         yield path.join(trentoDataDirectory, aFile)
+
 
 
 def hydroWithInitialCondition(aFile):
@@ -697,25 +745,37 @@ def sequentialEventDriverShell():
 
         # get simulation type
         simulationType = controlParameterList['simulation_type']
-        # name initial condition function
-        icString = "generate" + controlParameterList['initialCondition'].capitalize() + "InitialConditions"
+        # get initial condition type
+        initialConditionType = controlParameterList['initialCondition']
+        icString = "generate" + initialConditionType[0].upper() + initialConditionType[1:] + "InitialConditions"
 
         # generate initial conditions then loop over initial conditions
         event_id = 0
-        # print(current progress to terminal
+        # print current progress to terminal
         stdout.write("PROGRESS: %d events out of %d finished.\n" % (event_id, controlParameterList['numberOfEvents']))
         stdout.flush()
         for aInitialConditionFile in globals()[icString](controlParameterList['numberOfEvents']):
-            # get the result folder name for storing results, then create it if necessary
             event_id += 1
+            initial_id = int(aInitialConditionFile.split('/')[-1].split('_')[2])
             eventResultDir = path.join(resultDir, controlParameterList['eventResultDirPattern'] % event_id)
             controlParameterList['eventResultDir'] = eventResultDir
             if path.exists(eventResultDir):
                 rmtree(eventResultDir)
             makedirs(eventResultDir)
 
-            # print(current progress to terminal
+            # print current progress to terminal
             print("Starting event %d..." % event_id)
+            
+            if initialConditionType == 'superMC':
+                if superMCControl['saveICFile']:
+                    superMCDataDirectory = path.join(controlParameterList['rootDir'], superMCControl['mainDir'], superMCControl['dataDir'])
+                for aFile in glob(path.join(superMCDataDirectory, superMCControl['dataFiles'] % initial_id)):
+                    copy(aFile, controlParameterList['eventResultDir'])
+            if initialConditionType == 'trento':
+                if trentoControl['saveICFile']:
+                    trentoDataDirectory = path.join(controlParameterList['rootDir'], trentoControl['mainDir'], trentoControl['dataDir'])
+                for aFile in glob(path.join(trentoDataDirectory, trentoControl['dataFiles'] % initial_id)):
+                    copy(aFile, controlParameterList['eventResultDir'])
 
             # perform hydro calculations and get a list of all the result filenames
             hydroResultFiles = [aFile for aFile in hydroWithInitialCondition(aInitialConditionFile)]

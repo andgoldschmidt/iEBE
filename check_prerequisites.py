@@ -103,7 +103,7 @@ def checkExecutables():
         path.join("iS", "iInteSp.e"),
         path.join("osc2u", "osc2u.e"),
         path.join("urqmd", "urqmd.e"),
-        path.join("trento","build", "src", "trento")
+        path.join("trento","src", "build", "src", "trento")
     )
 
     # check for existence of all executables

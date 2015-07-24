@@ -8,6 +8,7 @@
 import math
 from sys import exit
 from os import path, listdir
+from glob import glob
 import re
 import numpy as np
 from numpy import * # used by EbeDBReader.evaluateExpression function to support all math operations
@@ -271,15 +272,21 @@ class EbeCollector(object):
     def collectScalars(self, folder, event_id, db):
         """
             This function collects scalar info and into the "scalars" table.
-            The supported scalars include: lifetime of the fireball.
+            The supported scalars include: lifetime of the fireball, 
+            impact parameter, participants.
         """
         # first write the scalar, makes sure there is only one such table
-        db.createTableIfNotExists("scalars", (("event_id","integer"), ("lifetime","real")))
+        db.createTableIfNotExists("scalars", (("event_id","integer"), ("b", "real"), ("participants", "integer"), ("lifetime","real")))
         # for lifetime
         maxLifetime = np.max(np.loadtxt(path.join(folder, "surface.dat"))[:,1])
         db.insertIntoTable("scalars", (event_id, maxLifetime))
-
-
+        
+        # impact parameter and participants from scalars file
+        scalars = glob(path.join(folder, '*event*_scalars.dat'))
+        if scalars:
+            b, npart = np.loadtxt(scalars[0])
+            db.insertIntoTable("b", float(b))
+            db.insertIntoTable("participants", int(npart))
 
 
     def collectFLowsAndMultiplicities_urqmdBinUtilityFormat(self, folder, event_id, db, multiplicityFactor=1.0):
