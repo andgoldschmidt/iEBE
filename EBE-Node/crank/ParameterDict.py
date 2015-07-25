@@ -1,6 +1,6 @@
 controlParameterList = {
     'simulation_type'       :   'hydro',  # 'hybrid' or 'hydro'
-    'initialCondition'      :   'superMC', # 'trento' or 'superMC'
+    'initialCondition'      :   'trento', # 'trento' or 'superMC'
     'niceness'              :   10,       # range from 0 to 19 for process priority, 0 for the highest priority
 }
 
@@ -58,7 +58,7 @@ hydroParameters = {
     'T0'        :   0.6,        # tau_0
     'dt'        :   0.02,       # dtau
     'Edec'      :   0.18,
-    'iLS'       :   130,        # lattice size in transverse plane 2*iLS+1
+    'iLS'       :   130,        # lattice size in transverse plane 2*iLS+1 (must match ic grid)
     'dx'        :   0.1,        # lattice spacing in x (fm)
                                 # need to be the same as dx in initial condition
     'dy'        :   0.1,        # lattice spacing in y (fm)

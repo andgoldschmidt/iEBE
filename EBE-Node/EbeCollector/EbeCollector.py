@@ -273,20 +273,20 @@ class EbeCollector(object):
         """
             This function collects scalar info and into the "scalars" table.
             The supported scalars include: lifetime of the fireball, 
-            impact parameter, participants.
+            impact parameter, participants, and multiplicity.
         """
         # first write the scalar, makes sure there is only one such table
-        db.createTableIfNotExists("scalars", (("event_id","integer"), ("b", "real"), ("participants", "integer"), ("lifetime","real")))
+        db.createTableIfNotExists("scalars", (("event_id","integer"), ("b", "real"), ("participants", "integer"), ("dsdy", "real"), ("lifetime","real")))
         # for lifetime
         maxLifetime = np.max(np.loadtxt(path.join(folder, "surface.dat"))[:,1])
-        db.insertIntoTable("scalars", (event_id, maxLifetime))
-        
-        # impact parameter and participants from scalars file
+
+        # impact parameter, participants, multiplicity from scalars file
         scalars = glob(path.join(folder, '*event*_scalars.dat'))
         if scalars:
-            b, npart = np.loadtxt(scalars[0])
-            db.insertIntoTable("b", float(b))
-            db.insertIntoTable("participants", int(npart))
+            scalars = np.loadtxt(scalars[0])
+        else:
+            scalars = np.zeros(3)
+        db.insertIntoTable("scalars", (int(event_id), int(scalars[0]), scalars[1], scalars[2], maxLifetime))
 
 
     def collectFLowsAndMultiplicities_urqmdBinUtilityFormat(self, folder, event_id, db, multiplicityFactor=1.0):

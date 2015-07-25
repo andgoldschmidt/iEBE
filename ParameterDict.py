@@ -1,6 +1,6 @@
 controlParameterList = {
     'simulation_type'       :   'hydro',  # 'hybrid' or 'hydro'
-    'initialCondition'      :   'superMC', # 'trento' or 'superMC'
+    'initialCondition'      :   'trentol', # 'trento' or 'superMC'
     'niceness'              :   10,       # range from 0 to 19 for process priority, 0 for the highest priority
 }
 

@@ -14,7 +14,7 @@ for ii in trento/src superMC; do
     cd build
     cmake ../ && make
     name=`echo $ii | cut -d / -f 1`
-    mv src/${ii}*  ../
+    mv src/${name}*  ../${name}.e
   )
 done
 
